@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DockWidget</class>
+ <widget class="QWidget" name="DockWidget">
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QHBoxLayout" name="mainSplitLayout">
+     <item>
+      <widget class="QSplitter" name="mainSplitter">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="childrenCollapsible">
+        <bool>false</bool>
+       </property>
+       <widget class="QGroupBox" name="inputsGroup">
+       <property name="title">
+        <string>Inputs</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <layout class="QHBoxLayout" name="rasterButtonsLayout">
+          <item>
+           <widget class="QPushButton" name="addFilesButton">
+            <property name="text">
+             <string>Add Files</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="addProjectButton">
+            <property name="text">
+             <string>Add From Project</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="removeSelectedButton">
+            <property name="text">
+             <string>Remove Selected</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QTableWidget" name="rasterTable">
+          <property name="columnCount">
+           <number>2</number>
+          </property>
+          <property name="rowCount">
+           <number>0</number>
+          </property>
+          <column>
+           <property name="text">
+            <string>Raster</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Year</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="aoiLayout">
+          <item>
+           <widget class="QLabel" name="aoiLabel">
+            <property name="text">
+             <string>AOI Mask</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="aoiCombo" />
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="nodataLayout">
+          <item>
+           <widget class="QLabel" name="nodataLabel">
+            <property name="text">
+             <string>NoData</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="nodataMode" />
+          </item>
+          <item>
+           <widget class="QLineEdit" name="nodataValue" />
+          </item>
+         </layout>
+        </item>
+       <item>
+        <layout class="QHBoxLayout" name="nodataClassLayout">
+         <item>
+          <widget class="QCheckBox" name="includeNodataClassCheck">
+           <property name="text">
+            <string>Include NoData class in outputs</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+        <item>
+         <layout class="QHBoxLayout" name="outputLayout">
+          <item>
+           <widget class="QLabel" name="outputLabel">
+            <property name="text">
+             <string>Output Dir</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="outputDir" />
+          </item>
+          <item>
+           <widget class="QPushButton" name="browseOutput">
+            <property name="text">
+             <string>Browse</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="crsLayout">
+          <item>
+           <widget class="QLabel" name="crsLabel">
+            <property name="text">
+             <string>Output CRS</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="crsWidget" />
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="legendGroup">
+          <property name="title">
+           <string>Class Legend</string>
+          </property>
+          <layout class="QVBoxLayout" name="legendLayout">
+           <item>
+            <layout class="QHBoxLayout" name="legendButtonsLayout">
+             <item>
+              <widget class="QPushButton" name="addLegendRowButton">
+               <property name="text">
+                <string>Add Row</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="removeLegendRowButton">
+               <property name="text">
+                <string>Remove Selected</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QTableWidget" name="legendTable">
+             <property name="columnCount">
+              <number>2</number>
+             </property>
+             <property name="rowCount">
+              <number>0</number>
+             </property>
+             <column>
+              <property name="text">
+               <string>Class ID</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Label</string>
+              </property>
+             </column>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+       </widget>
+       <widget class="QGroupBox" name="validationGroup">
+       <property name="title">
+        <string>Input Validation</string>
+       </property>
+       <layout class="QVBoxLayout" name="validationLayout">
+        <item>
+         <widget class="QPushButton" name="validateButton">
+          <property name="text">
+           <string>Validate Inputs</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTableWidget" name="validationTable">
+          <property name="columnCount">
+           <number>3</number>
+          </property>
+          <property name="rowCount">
+           <number>0</number>
+          </property>
+          <column>
+           <property name="text">
+            <string>Check</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Status</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Details</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+       </layout>
+       </widget>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="outputsGroup">
+     <property name="title">
+      <string>Outputs</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="areaByClassCheck">
+        <property name="text">
+         <string>Area by Class</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="netGrossCheck">
+        <property name="text">
+         <string>Net/Gross Change</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="transitionCheck">
+        <property name="text">
+         <string>Transition Matrix</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="topTransitionsCheck">
+        <property name="text">
+         <string>Top Transitions</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="changeFreqCheck">
+        <property name="text">
+         <string>Change Frequency</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="intensityCheck">
+        <property name="text">
+         <string>Change Intensity</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QCheckBox" name="hotspotCheck">
+        <property name="text">
+         <string>Hotspots (Heatmap)</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="runLayout">
+     <item>
+      <widget class="QPushButton" name="runButton">
+       <property name="text">
+        <string>Run Analysis</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QProgressBar" name="progressBar" />
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QPlainTextEdit" name="logText" />
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="aboutHelpLayout">
+     <item>
+      <spacer name="aboutHelpSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="aboutButton">
+       <property name="text">
+        <string>About</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="helpButton">
+       <property name="text">
+        <string>Help</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
