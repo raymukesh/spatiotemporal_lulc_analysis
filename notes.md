@@ -9,10 +9,14 @@ C:\Users\140790\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\spati
 - Area by class per year (CSV)
 - Net/gross change per interval (CSV)
 - Transition matrix per interval (CSV)
+- Transition matrix for first/last year (CSV)
 - Top transitions ranking (CSV)
 - Change frequency raster across all years (GeoTIFF)
 - Change intensity per interval (CSV)
 - Change hotspots (heatmap) per interval (GeoTIFF)
+- Interactive charts for CSV outputs (HTML)
+- Sankey diagram across all intervals (HTML)
+- Plotly is vendored under vendor/ for offline HTML exports
 
 ## UI and Behavior
 - Floating dock opens centered and larger by default (900x700).
@@ -39,6 +43,7 @@ C:\Users\140790\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\spati
 ## Outputs Formatting
 - CSV float values are rounded to 3 decimal places.
 - Transition matrix excludes NoData class by default but can include it via checkbox.
+- Output units can be set to pixels, square meters, or square kilometers.
 
 ## Metadata
 - Plugin name: Spatiotemporal LULC Analysis

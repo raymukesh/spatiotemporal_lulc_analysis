@@ -6,7 +6,7 @@ from collections import namedtuple
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QColor, QBrush, QIcon
-from qgis.PyQt.QtWidgets import QAction, QDockWidget, QFileDialog, QDialog, QListWidget, QPushButton, QVBoxLayout, QMessageBox
+from qgis.PyQt.QtWidgets import QAction, QDockWidget, QFileDialog, QDialog, QListWidget, QPushButton, QVBoxLayout, QMessageBox, QDialogButtonBox, QPlainTextEdit
 from qgis.core import QgsProject, QgsRasterLayer, QgsMapLayerType, QgsMapLayerProxyModel, Qgis
 from qgis.gui import QgsMapLayerComboBox, QgsProjectionSelectionWidget
 import processing
@@ -23,6 +23,7 @@ from .core.persistence import write_change_frequency
 from .core.intensity import compute_intensity_rows
 from .core.hotspot import build_hotspot_raster
 from .core.exports import write_csv, add_raster_to_project, reproject_raster
+from .core import charts
 
 RasterItem = namedtuple('RasterItem', ['layer', 'path', 'year', 'nodata'])
 
@@ -94,17 +95,11 @@ class LandChangeAccountingPlugin:
 
     def _show_about(self):
         text = (
-            'Land Change Accounting (MVP)\n'
+            'Spatiotemporal LULC Analysis\n'
             'Version: 0.1.0\n'
             'Author: Mukesh Ray\n\n'
             'Purpose\n'
-            '  Core land use/land cover change accounting for categorical rasters.\n'
-            '  Focus: what changed, where, and how much.\n\n'
-            'Outputs\n'
-            '  CSV tables and GeoTIFF rasters written to disk and added to the map.\n\n'
-            'Limitations\n'
-            '  No reprojection or resampling of inputs in MVP.\n'
-            '  Inputs must be aligned and share CRS, extent, resolution, and grid.\n'
+            '  Land use/land cover change accounting for categorical rasters.\n'
         )
         QMessageBox.information(self.widget, 'About Land Change Accounting', text)
 
@@ -125,17 +120,23 @@ class LandChangeAccountingPlugin:
             '  - Add Class ID and Label rows to include labels in CSV outputs.\n'
             '  - If a class ID has no label, the label column is left blank.\n\n'
             'Outputs (CSV)\n'
-            '  Area by Class: per year counts, area (km2), percent share.\n'
+            '  Area by Class: per year counts, area (selected units), percent share.\n'
             '  Net/Gross Change: gain, loss, net, gross per class per interval.\n'
-            '  Transition Matrix: from-to pixel counts per interval.\n'
+            '  Transition Matrix (All Intervals): from-to pixel counts per interval.\n'
+            '  Transition Matrix (First-Last): from-to pixel counts for first/last year.\n'
             '  Top Transitions: ranked conversions with percent of total change.\n'
             '  Change Intensity: interval and annualized change ratios.\n\n'
             'Outputs (Raster)\n'
             '  Change Frequency: counts how many times each pixel changed across all years.\n'
             '  Hotspots: kernel density heatmap of changed pixels per interval.\n\n'
+            'Charts (HTML)\n'
+            '  Optional interactive charts exported alongside CSVs.\n\n'
             'Output CRS\n'
             '  - Raster outputs can be reprojected to a selected CRS.\n'
             '  - CSV outputs are unaffected by CRS choice.\n\n'
+            'Output Units\n'
+            '  - Controls units for area outputs and transition matrices.\n'
+            '  - Pixels, square meters, or square kilometers.\n\n'
             'Validation Panel\n'
             '  - Use Validate Inputs to review CRS, pixel size, extent, alignment,\n'
             '    data type, NoData status, value ranges, and unique class counts.\n\n'
@@ -146,11 +147,31 @@ class LandChangeAccountingPlugin:
             '  - If validation fails, fix input alignment before running.\n'
             '  - Ensure NoData is set correctly to avoid false changes.\n'
         )
-        QMessageBox.information(self.widget, 'Help - Land Change Accounting', text)
+        dialog = QDialog(self.widget)
+        dialog.setWindowTitle('Help - Spatiotemporal LULC Analysis')
+        dialog.setModal(True)
+        dialog.resize(520, 420)
+        layout = QVBoxLayout(dialog)
+        text_box = QPlainTextEdit(dialog)
+        text_box.setReadOnly(True)
+        text_box.setPlainText(text)
+        layout.addWidget(text_box)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok, parent=dialog)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+        dialog.exec_()
 
     def _setup_ui(self):
+        from qgis.PyQt.QtWidgets import QSizePolicy
         self.widget.nodataMode.addItems(['Use raster NoData', 'Use value'])
         self.widget.nodataValue.setEnabled(False)
+        self.widget.nodataMode.setMinimumWidth(140)
+        self.widget.nodataMode.setMaximumWidth(180)
+        self.widget.nodataMode.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.widget.nodataValue.setMinimumWidth(120)
+        self.widget.nodataValue.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.widget.outputUnits.addItems(['Pixels', 'Square meters', 'Square kilometers'])
+        self.widget.outputUnits.setCurrentIndex(2)
         self.widget.nodataMode.currentIndexChanged.connect(self._nodata_mode_changed)
         self.widget.browseOutput.clicked.connect(self._browse_output)
         self.widget.addFilesButton.clicked.connect(self._add_files)
@@ -162,8 +183,28 @@ class LandChangeAccountingPlugin:
         self.widget.aboutButton.clicked.connect(self._show_about)
         self.widget.helpButton.clicked.connect(self._show_help)
         self.widget.runButton.clicked.connect(self._run_analysis)
+        self.widget.runButton.setStyleSheet(
+            'QPushButton {'
+            'background-color: #2e7d32;'
+            'color: #ffffff;'
+            'font-weight: bold;'
+            'padding: 4px 10px;'
+            '}'
+            'QPushButton:hover {'
+            'background-color: #1b5e20;'
+            '}'
+            'QPushButton:disabled {'
+            'background-color: #9e9e9e;'
+            'color: #ffffff;'
+            '}'
+        )
+        self.widget.runButton.setMinimumHeight(28)
         self.widget.progressBar.setValue(0)
         self.widget.logText.setReadOnly(True)
+        self.widget.logGroup.setVisible(False)
+        self.widget.toggleDetailsButton.setCheckable(True)
+        self.widget.toggleDetailsButton.setChecked(False)
+        self.widget.toggleDetailsButton.toggled.connect(self.widget.logGroup.setVisible)
 
         aoi_combo = QgsMapLayerComboBox(self.widget)
         aoi_combo.setFilters(QgsMapLayerProxyModel.PolygonLayer)
@@ -176,33 +217,39 @@ class LandChangeAccountingPlugin:
         self.widget.crsWidget.deleteLater()
         self.widget.crsWidget = crs_widget
         self.widget.crsWidget.setCrs(QgsProject.instance().crs())
+        self.widget.crsWidget.setMaximumHeight(26)
 
         for checkbox in (
             self.widget.areaByClassCheck,
             self.widget.netGrossCheck,
             self.widget.transitionCheck,
+            self.widget.transitionFirstLastCheck,
             self.widget.topTransitionsCheck,
             self.widget.changeFreqCheck,
             self.widget.intensityCheck,
             self.widget.hotspotCheck,
         ):
             checkbox.setChecked(True)
+        self.widget.chartsCheck.setChecked(False)
         self.widget.includeNodataClassCheck.setChecked(False)
 
         header = self.widget.rasterTable.horizontalHeader()
-        header.setSectionResizeMode(0, header.Interactive)
-        header.setSectionResizeMode(1, header.Interactive)
-        self.widget.rasterTable.setColumnWidth(0, 300)
-        self.widget.rasterTable.setColumnWidth(1, 120)
+        header.setSectionResizeMode(0, header.Stretch)
+        header.setSectionResizeMode(1, header.Fixed)
+        self.widget.rasterTable.setColumnWidth(1, 180)
+        self.widget.rasterTable.setMaximumHeight(220)
 
         legend_header = self.widget.legendTable.horizontalHeader()
         legend_header.setSectionResizeMode(0, legend_header.ResizeToContents)
         legend_header.setSectionResizeMode(1, legend_header.Stretch)
+        self.widget.legendTable.setMaximumHeight(180)
 
         validation_header = self.widget.validationTable.horizontalHeader()
         validation_header.setSectionResizeMode(0, validation_header.ResizeToContents)
         validation_header.setSectionResizeMode(1, validation_header.ResizeToContents)
         validation_header.setSectionResizeMode(2, validation_header.Stretch)
+        self.widget.validationTable.setMaximumHeight(240)
+        self.widget.validateButton.setMaximumHeight(28)
 
     def _log(self, message):
         self.widget.logText.appendPlainText(message)
@@ -254,7 +301,9 @@ class LandChangeAccountingPlugin:
         for row, item in enumerate(self.rasters):
             label = item.layer.name() or os.path.basename(item.path)
             self.widget.rasterTable.setItem(row, 0, self._make_item(label))
-            self.widget.rasterTable.setItem(row, 1, self._make_item(item.year or ''))
+            year_item = self._make_item(item.year or '')
+            year_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.widget.rasterTable.setItem(row, 1, year_item)
 
     def _make_item(self, text):
         from qgis.PyQt.QtWidgets import QTableWidgetItem
@@ -602,6 +651,14 @@ class LandChangeAccountingPlugin:
                 self.widget.intensityCheck.isChecked(),
                 self.widget.hotspotCheck.isChecked(),
             ]
+            charts_enabled = self.widget.chartsCheck.isChecked()
+            if charts_enabled and not charts.plotly_available():
+                self._log('Charts: Plotly not available. Enable vendored Plotly to export HTML.')
+                charts_enabled = False
+            chart_dir = None
+            if charts_enabled:
+                chart_dir = os.path.join(output_dir, 'charts')
+                os.makedirs(chart_dir, exist_ok=True)
             intervals = max(0, len(rasters) - 1)
             passes = 0
             passes += len(rasters)  # compute_max_class
@@ -609,6 +666,8 @@ class LandChangeAccountingPlugin:
                 passes += len(rasters)
             if any(steps[1:4]) or self.widget.intensityCheck.isChecked() or self.widget.hotspotCheck.isChecked():
                 passes += intervals  # interval metrics
+            if self.widget.transitionFirstLastCheck.isChecked():
+                passes += 1
             if self.widget.changeFreqCheck.isChecked():
                 passes += 1
             if self.widget.hotspotCheck.isChecked():
@@ -627,6 +686,15 @@ class LandChangeAccountingPlugin:
             if target_crs is None or not target_crs.isValid():
                 target_crs = QgsProject.instance().crs()
             legend_map = self._read_legend_map()
+            unit_text = self.widget.outputUnits.currentText()
+
+            def unit_info(layer):
+                if unit_text == 'Pixels':
+                    return 'pixels', 1.0
+                px_area = abs(layer.rasterUnitsPerPixelX() * layer.rasterUnitsPerPixelY())
+                if unit_text == 'Square meters':
+                    return 'm2', px_area
+                return 'km2', px_area / 1e6
 
             self._run_validation(output_dir=output_dir, log_errors=False, progress=progress_cb)
 
@@ -635,15 +703,20 @@ class LandChangeAccountingPlugin:
                 for idx, item in enumerate(rasters):
                     area_counts = compute_area_by_class(item.layer, nodata_list[idx], mask_layer, progress=progress_cb)
                     total_pixels = sum(area_counts.values())
-                    pixel_area_km2 = item.layer.rasterUnitsPerPixelX() * item.layer.rasterUnitsPerPixelY() / 1e6
+                    unit_label, area_factor = unit_info(item.layer)
                     for class_id, count in sorted(area_counts.items()):
-                        area_km2 = count * abs(pixel_area_km2)
+                        area_value = count * area_factor
                         percent = (count / total_pixels * 100.0) if total_pixels else 0.0
-                        rows.append([item.year, class_id, legend_map.get(class_id, ''), count, area_km2, percent])
+                        rows.append([item.year, class_id, legend_map.get(class_id, ''), count, area_value, percent])
+                unit_label, _ = unit_info(rasters[0].layer)
                 write_csv(os.path.join(output_dir, 'area_by_class.csv'),
-                          ['year', 'class_id', 'class_label', 'pixel_count', 'area_km2', 'percent_share'],
+                          ['year', 'class_id', 'class_label', 'pixel_count', 'area_{}'.format(unit_label), 'percent_share'],
                           rows)
                 self._log('Wrote area_by_class.csv')
+                if charts_enabled:
+                    ok, _ = charts.export_area_by_class(rows, chart_dir, unit_label)
+                    if ok:
+                        self._log('Wrote charts/area_by_class.html')
 
             interval_results = []
             for idx in range(len(rasters) - 1):
@@ -651,12 +724,29 @@ class LandChangeAccountingPlugin:
                 r1 = rasters[idx + 1]
                 result = compute_interval_metrics(r0.layer, r1.layer, nodata_list[idx], nodata_list[idx + 1], mask_layer, max_class, progress=progress_cb)
                 interval_results.append((r0, r1, nodata_list[idx], nodata_list[idx + 1], result))
+            if charts_enabled:
+                sankey_intervals = []
+                for r0, r1, nodata0, nodata1, result in interval_results:
+                    nodata_class = self._nodata_class(nodata0, nodata1)
+                    unit_label, area_factor = unit_info(r0.layer)
+                    sankey_intervals.append({
+                        'year0': r0.year,
+                        'year1': r1.year,
+                        'matrix': result['matrix'],
+                        'nodata_class': nodata_class,
+                        'unit_label': unit_label,
+                        'area_factor': area_factor,
+                    })
+                ok, _ = charts.export_sankey(sankey_intervals, legend_map, chart_dir)
+                if ok:
+                    self._log('Wrote charts/class_flow_sankey.html')
 
             if self.widget.netGrossCheck.isChecked():
+                combined_intervals = []
                 for r0, r1, _, _, result in interval_results:
                     gain = result['gain']
                     loss = result['loss']
-                    pixel_area_km2 = r0.layer.rasterUnitsPerPixelX() * r0.layer.rasterUnitsPerPixelY() / 1e6
+                    unit_label, area_factor = unit_info(r0.layer)
                     rows = []
                     for class_id in range(max_class + 1):
                         gain_px = int(gain[class_id])
@@ -670,14 +760,28 @@ class LandChangeAccountingPlugin:
                             loss_px,
                             net_px,
                             gross_px,
-                            net_px * abs(pixel_area_km2),
-                            gross_px * abs(pixel_area_km2),
+                            net_px * area_factor,
+                            gross_px * area_factor,
                         ])
                     fname = 'net_gross_change_{}_{}.csv'.format(r0.year, r1.year)
                     write_csv(os.path.join(output_dir, fname),
-                              ['class_id', 'class_label', 'gain_pixels', 'loss_pixels', 'net_pixels', 'gross_pixels', 'area_km2_net', 'area_km2_gross'],
+                              ['class_id', 'class_label', 'gain_pixels', 'loss_pixels', 'net_pixels', 'gross_pixels', 'area_{}_net'.format(unit_label), 'area_{}_gross'.format(unit_label)],
                               rows)
                     self._log('Wrote {}'.format(fname))
+                    combined_intervals.append({
+                        'label': '{}-{}'.format(r0.year, r1.year),
+                        'rows': rows,
+                        'unit_label': unit_label,
+                        'area_factor': area_factor,
+                    })
+                    if charts_enabled:
+                        ok, _ = charts.export_net_gross(rows, r0.year, r1.year, unit_label, area_factor, chart_dir)
+                        if ok:
+                            self._log('Wrote charts/{}.html'.format(fname.replace('.csv', '')))
+                if charts_enabled and combined_intervals:
+                    ok, _ = charts.export_net_gross_combined(combined_intervals, legend_map, chart_dir)
+                    if ok:
+                        self._log('Wrote charts/net_gross_change_all_intervals.html')
 
             if self.widget.transitionCheck.isChecked():
                 for r0, r1, nodata0, nodata1, result in interval_results:
@@ -686,13 +790,66 @@ class LandChangeAccountingPlugin:
                     nodata_class = self._nodata_class(nodata0, nodata1)
                     classes = [i for i in range(max_class + 1) if i != nodata_class]
                     rows = []
+                    unit_label, area_factor = unit_info(r0.layer)
                     for i in classes:
-                        rows.append([i, legend_map.get(i, '')] + [int(matrix[i, j]) for j in classes])
+                        values = []
+                        for j in classes:
+                            val = matrix[i, j]
+                            if unit_label != 'pixels':
+                                val = float(val) * area_factor
+                            else:
+                                val = int(val)
+                            values.append(val)
+                        rows.append([i, legend_map.get(i, '')] + values)
                     header = ['from_class', 'from_label'] + [
                         '{} {}'.format(i, legend_map.get(i, '')).strip() for i in classes
                     ]
                     write_csv(os.path.join(output_dir, fname), header, rows)
                     self._log('Wrote {}'.format(fname))
+                    if charts_enabled:
+                        import numpy as np
+                        sub_matrix = matrix[np.ix_(classes, classes)]
+                        if unit_label != 'pixels':
+                            sub_matrix = sub_matrix.astype(float) * area_factor
+                        ok, _ = charts.export_transition_matrix(sub_matrix, classes, legend_map, r0.year, r1.year, chart_dir, unit_label)
+                        if ok:
+                            self._log('Wrote charts/{}.html'.format(fname.replace('.csv', '')))
+
+            if self.widget.transitionFirstLastCheck.isChecked():
+                r0 = rasters[0]
+                r1 = rasters[-1]
+                nodata0 = nodata_list[0]
+                nodata1 = nodata_list[-1]
+                result = compute_interval_metrics(r0.layer, r1.layer, nodata0, nodata1, mask_layer, max_class, progress=progress_cb)
+                matrix = result['matrix']
+                fname = 'transition_matrix_first_last_{}_{}.csv'.format(r0.year, r1.year)
+                nodata_class = self._nodata_class(nodata0, nodata1)
+                classes = [i for i in range(max_class + 1) if i != nodata_class]
+                rows = []
+                unit_label, area_factor = unit_info(r0.layer)
+                for i in classes:
+                    values = []
+                    for j in classes:
+                        val = matrix[i, j]
+                        if unit_label != 'pixels':
+                            val = float(val) * area_factor
+                        else:
+                            val = int(val)
+                        values.append(val)
+                    rows.append([i, legend_map.get(i, '')] + values)
+                header = ['from_class', 'from_label'] + [
+                    '{} {}'.format(i, legend_map.get(i, '')).strip() for i in classes
+                ]
+                write_csv(os.path.join(output_dir, fname), header, rows)
+                self._log('Wrote {}'.format(fname))
+                if charts_enabled:
+                    import numpy as np
+                    sub_matrix = matrix[np.ix_(classes, classes)]
+                    if unit_label != 'pixels':
+                        sub_matrix = sub_matrix.astype(float) * area_factor
+                    ok, _ = charts.export_transition_matrix(sub_matrix, classes, legend_map, r0.year, r1.year, chart_dir, unit_label)
+                    if ok:
+                        self._log('Wrote charts/{}.html'.format(fname.replace('.csv', '')))
 
             if self.widget.topTransitionsCheck.isChecked():
                 for r0, r1, _, _, result in interval_results:
@@ -700,21 +857,27 @@ class LandChangeAccountingPlugin:
                     rows = build_top_transitions(matrix, r0.layer)
                     fname = 'top_transitions_{}_{}.csv'.format(r0.year, r1.year)
                     labeled = []
+                    unit_label, area_factor = unit_info(r0.layer)
                     for row in rows:
                         from_id, to_id, count, area_km2, percent = row
+                        area_value = count * area_factor
                         labeled.append([
                             from_id,
                             legend_map.get(from_id, ''),
                             to_id,
                             legend_map.get(to_id, ''),
                             count,
-                            area_km2,
+                            area_value,
                             percent,
                         ])
                     write_csv(os.path.join(output_dir, fname),
-                              ['from_class', 'from_label', 'to_class', 'to_label', 'pixel_count', 'area_km2', 'percent_of_total_change'],
+                              ['from_class', 'from_label', 'to_class', 'to_label', 'pixel_count', 'area_{}'.format(unit_label), 'percent_of_total_change'],
                               labeled)
                     self._log('Wrote {}'.format(fname))
+                    if charts_enabled:
+                        ok, _ = charts.export_top_transitions(labeled, r0.year, r1.year, chart_dir, unit_label)
+                        if ok:
+                            self._log('Wrote charts/{}.html'.format(fname.replace('.csv', '')))
 
             if self.widget.changeFreqCheck.isChecked():
                 change_path = os.path.join(output_dir, 'change_frequency.tif')
@@ -729,6 +892,10 @@ class LandChangeAccountingPlugin:
                           ['year0', 'year1', 'interval_years', 'changed_pixels', 'total_pixels', 'interval_intensity', 'annualized_intensity'],
                           rows)
                 self._log('Wrote change_intensity.csv')
+                if charts_enabled:
+                    ok, _ = charts.export_intensity(rows, chart_dir)
+                    if ok:
+                        self._log('Wrote charts/change_intensity.html')
 
             if self.widget.hotspotCheck.isChecked():
                 for r0, r1, nodata0, nodata1, _ in interval_results:
