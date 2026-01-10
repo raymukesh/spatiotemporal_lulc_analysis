@@ -100,6 +100,8 @@ class LandChangeAccountingPlugin:
             'Author: Mukesh Ray\n\n'
             'Purpose\n'
             '  Land use/land cover change accounting for categorical rasters.\n'
+            'Website\n'
+            '  https://raymukesh.github.io/spatiotemporal_lulc_analysis/\n'
         )
         QMessageBox.information(self.widget, 'About Land Change Accounting', text)
 
@@ -146,6 +148,9 @@ class LandChangeAccountingPlugin:
             'Troubleshooting\n'
             '  - If validation fails, fix input alignment before running.\n'
             '  - Ensure NoData is set correctly to avoid false changes.\n'
+            '\n'
+            'Website\n'
+            '  https://raymukesh.github.io/spatiotemporal_lulc_analysis/\n'
         )
         dialog = QDialog(self.widget)
         dialog.setWindowTitle('Help - Spatiotemporal LULC Analysis')

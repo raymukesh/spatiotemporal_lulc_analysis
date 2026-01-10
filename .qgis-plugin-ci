@@ -1,0 +1,2 @@
+plugin_path: .
+use_project_slug_as_plugin_directory: true

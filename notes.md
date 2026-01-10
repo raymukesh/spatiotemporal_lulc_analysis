@@ -27,6 +27,7 @@ C:\Users\140790\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\spati
 - Raster/Year columns are resizable by dragging.
 - Progress bar updates per raster block with a counter.
 - Splitter between Inputs and Input Validation is draggable.
+- About/Help text now includes website link.
 
 ## Validation Checks Included
 - CRS match
@@ -45,11 +46,27 @@ C:\Users\140790\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\spati
 - Transition matrix excludes NoData class by default but can include it via checkbox.
 - Output units can be set to pixels, square meters, or square kilometers.
 
+## Website / GitHub Pages
+- Static site lives under docs/ and is published via GitHub Pages (main/docs).
+- Gallery uses docs/assets/01_inputs.png, 02_validation.png, 03_output.png.
+- Gallery images open in a lightbox on click.
+- Methodological notes section is collapsible by default.
+- LaTeX-style formulas rendered via MathJax CDN.
+- Methods section styling uses white background and black text.
+
 ## Metadata
 - Plugin name: Spatiotemporal LULC Analysis
 - Author: Mukesh Ray
 - Description updated to list analysis types
 - Icon path set to icons\icon.png (ensure icon.png exists in icons/)
+- metadata.txt now includes homepage, tracker, repository links
+
+## Packaging
+- notes.md is excluded from plugin zips via .qgis-plugin.donotpackage
+
+## README
+- Homepage section added with GitHub Pages link.
+- UI behavior highlights section removed.
 
 ## Known Issues/Notes
 - Heatmap extent still under investigation; extent string now includes CRS tag.
