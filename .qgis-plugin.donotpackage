@@ -1,1 +1,26 @@
+# Dev-only / VCS
+.git
+.gitignore
+
+# Python cache
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+
+# Local build outputs
+dist
+release
+*.zip
+
+# Editor configs
+.vscode
+.idea
+
+# Notes / docs not needed in QGIS
 notes.md
+docs
+
+# CI config (keep in repo, exclude from zip)
+.qgis-plugin-ci
+.qgis-plugin.donotpackage
