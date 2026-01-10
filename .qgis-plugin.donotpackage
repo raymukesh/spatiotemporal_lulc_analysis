@@ -21,6 +21,3 @@ release
 notes.md
 docs
 
-# CI config (keep in repo, exclude from zip)
-.qgis-plugin-ci
-.qgis-plugin.donotpackage

@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 .qgis-plugin-ci
 .qgis-plugin.donotpackage
+.qgis-plugin.donotpackage
