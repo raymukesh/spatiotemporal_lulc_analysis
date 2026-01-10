@@ -6,6 +6,7 @@
     <title>Spatiotemporal LULC Analysis</title>
     <meta name="description" content="QGIS plugin for multi-year land use/land cover change analysis with CSV, GeoTIFF, and interactive outputs." />
     <link rel="stylesheet" href="styles.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
   </head>
   <body>
     <header class="hero">
@@ -15,6 +16,7 @@
           <a href="#features">Features</a>
           <a href="#workflow">Workflow</a>
           <a href="#outputs">Outputs</a>
+          <a href="#methods">Methods</a>
           <a href="#download" class="pill">Get the plugin</a>
         </div>
       </nav>
@@ -105,6 +107,77 @@
             </ul>
           </div>
         </div>
+      </section>
+
+      <section id="methods" class="section reveal">
+        <div class="section-header">
+          <h2>Methodological notes</h2>
+          <p>Formulas follow the implementation used in the plugin.</p>
+        </div>
+        <details class="math-details">
+          <summary>Show formulas and definitions</summary>
+          <div class="math-block">
+          <h3>Notation</h3>
+          <p>\( \Omega_t \) denotes the set of pixels that are valid at year \( t \) after NoData filtering and any optional AOI masking are applied. All summations are taken only over these valid pixels.</p>
+          <p>\( L_t(p) \) is the categorical class label assigned to pixel \( p \) at time \( t \). This label is an integer class ID derived directly from the input rasters.</p>
+          <p>\( A_{px} \) is the area represented by a single pixel in the units selected by the user (pixels, square meters, or square kilometers). It converts counts of pixels into physical area.</p>
+          <p>\( \mathbf{1}[\cdot] \) is the indicator function, which evaluates to 1 when the stated condition is true and 0 otherwise. It allows class membership and change conditions to be expressed as sums.</p>
+
+          <h3>Area by class (year \( t \))</h3>
+          <div class="equation">$$A_{k,t} = \sum_{p \in \Omega_t} \mathbf{1}[L_t(p)=k]$$</div>
+          <p>This expression counts the number of valid pixels that belong to class \( k \) at time \( t \). In practice, it is the histogram count of class IDs computed over the valid portion of the raster.</p>
+          <div class="equation">$$Area_{k,t} = A_{k,t} \cdot A_{px}$$</div>
+          <p>The pixel count is then converted to an areal measure by multiplying by the area represented by a single pixel. This yields class area in the user-selected units.</p>
+          <div class="equation">$$Percent_{k,t} = \frac{A_{k,t}}{\sum_k A_{k,t}} \times 100$$</div>
+          <p>The proportional share of class \( k \) is computed by dividing by the total number of valid pixels across all classes and converting to a percentage. This supports consistent comparisons across years.</p>
+
+          <h3>Interval change accounting (\( t_0 \rightarrow t_1 \))</h3>
+          <div class="equation">$$\Omega = \Omega_{t_0} \cap \Omega_{t_1}$$</div>
+          <p>The analysis uses only pixels that are valid in both years. This ensures that changes are evaluated on a comparable pixel set and are not driven by NoData or masking differences.</p>
+          <div class="equation">$$Total = |\Omega|$$</div>
+          <p>The total number of pixels in this intersection provides the denominator for interval-level change statistics.</p>
+          <div class="equation">$$Changed = \sum_{p \in \Omega} \mathbf{1}[L_{t_0}(p) \ne L_{t_1}(p)]$$</div>
+          <p>This counts all pixels whose class label differs between \( t_0 \) and \( t_1 \). It is the fundamental measure of change for the interval.</p>
+          <div class="equation">$$Gain_k = \sum_{p \in \Omega} \mathbf{1}[L_{t_1}(p)=k \land L_{t_0}(p)\ne L_{t_1}(p)]$$</div>
+          <p>Gain measures how many pixels transition into class \( k \) during the interval. Only pixels that actually changed are counted as gains.</p>
+          <div class="equation">$$Loss_k = \sum_{p \in \Omega} \mathbf{1}[L_{t_0}(p)=k \land L_{t_0}(p)\ne L_{t_1}(p)]$$</div>
+          <p>Loss measures how many pixels leave class \( k \) during the interval. Together with gains, it captures gross turnover of each class.</p>
+          <div class="equation">$$Net_k = Gain_k - Loss_k$$</div>
+          <p>Net change is the balance between gains and losses. A positive value indicates expansion of class \( k \), while a negative value indicates contraction.</p>
+          <div class="equation">$$Gross_k = Gain_k + Loss_k$$</div>
+          <p>Gross change reflects total class turnover irrespective of direction. It highlights dynamic classes even when net change is small.</p>
+
+          <h3>Transition matrix (\( t_0 \rightarrow t_1 \))</h3>
+          <div class="equation">$$M_{i,j} = \sum_{p \in \Omega} \mathbf{1}[L_{t_0}(p)=i \land L_{t_1}(p)=j]$$</div>
+          <p>Each matrix cell counts the number of pixels moving from class \( i \) to class \( j \) over the interval. The diagonal entries represent persistence, where a pixel remains in the same class.</p>
+
+          <h3>Top transitions</h3>
+          <div class="equation">$$Total_{change} = \sum_{i \ne j} M_{i,j}$$</div>
+          <p>The total change sum excludes the diagonal of the transition matrix, so it reflects only pixels that switched classes.</p>
+          <div class="equation">$$Percent_{i,j} = \frac{M_{i,j}}{Total_{change}} \times 100$$</div>
+          <p>Each transition’s share of total change is computed as a percentage, allowing the largest class-to-class conversions to be ranked.</p>
+          <div class="equation">$$Area_{i,j} = M_{i,j} \cdot A_{px}$$</div>
+          <p>Transition magnitudes are also expressed in area units to make the rankings interpretable in spatial terms.</p>
+
+          <h3>Change intensity</h3>
+          <div class="equation">$$I_{interval} = \frac{Changed}{Total}$$</div>
+          <p>Interval intensity represents the fraction of valid pixels that changed within the interval, offering a normalized measure that is comparable across different study areas.</p>
+          <div class="equation">$$I_{annual} = \frac{I_{interval}}{t_1 - t_0}$$</div>
+          <p>The annualized intensity divides interval intensity by the number of years between observations, yielding an average per-year change rate.</p>
+
+          <h3>Change frequency raster (all years)</h3>
+          <div class="equation">$$F(p) = \sum_{t=1}^{T-1} \mathbf{1}[L_t(p) \ne L_{t+1}(p)]$$</div>
+          <p>This raster counts how many times each pixel changes across the entire time series. It provides a spatial summary of repeated change events.</p>
+          <p>The value is computed only if pixel \( p \) is valid in all years; otherwise the output is set to -1 to indicate insufficient data.</p>
+
+          <h3>Change hotspots (per interval)</h3>
+          <p>All changed pixels are converted into point events with unit weight, representing discrete change locations.</p>
+          <p>A kernel density surface is then computed using a radius of 1000 map units and a pixel size equal to the raster resolution, producing a smooth hotspot intensity raster.</p>
+
+          <h3>Charts</h3>
+          <p>Interactive HTML charts are direct visualizations of the tabular outputs. They do not introduce new calculations, so they remain consistent with the reported metrics.</p>
+          </div>
+        </details>
       </section>
 
       <section class="section alt reveal">

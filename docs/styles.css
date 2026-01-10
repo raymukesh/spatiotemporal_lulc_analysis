@@ -236,6 +236,55 @@ h1 {
   margin-top: 0;
 }
 
+.math-details {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 8px 16px 16px;
+}
+
+.math-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 10px 0;
+  list-style: none;
+}
+
+.math-details summary::marker {
+  display: none;
+}
+
+.math-details summary::before {
+  content: "+";
+  display: inline-block;
+  margin-right: 8px;
+  font-weight: 700;
+}
+
+.math-details[open] summary::before {
+  content: "–";
+}
+
+.math-block {
+  background: #fff;
+  color: #111;
+  padding: 16px 4px 4px;
+}
+
+.math-block h3 {
+  margin: 18px 0 8px;
+  font-size: 16px;
+}
+
+.math-block p {
+  margin: 6px 0;
+  color: #222;
+}
+
+.equation {
+  margin: 10px 0 14px;
+}
+
 .gallery {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
