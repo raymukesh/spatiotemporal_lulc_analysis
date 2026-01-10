@@ -30,13 +30,6 @@ Spatiotemporal LULC Analysis is a QGIS plugin for multi-year land use/land cover
 - Transition matrices exclude NoData by default (optionally include NoData)
 - Output units can be pixels, square meters, or square kilometers
 
-## UI behavior highlights
-- Floating dock opens centered at 900x700 by default
-- Output CRS selector defaults to the project CRS if none is selected
-- Raster/Year columns are resizable by dragging
-- Splitter between Inputs and Input Validation is draggable
-- Progress bar updates per raster block with a counter
-
 ## Validation checks
 - CRS match
 - Pixel size match
