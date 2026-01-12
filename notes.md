@@ -5,6 +5,11 @@ This plugin started as "Land Change Accounting" and has been renamed to "Spatiot
 The installed QGIS plugin folder has been renamed to:
 C:\Users\140790\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\spatiotemporal_lulc_analysis
 
+## Recent Changes
+- Charts now use Plotly.js (vendored) instead of Python plotly, with Plotly.js inlined into exported HTML.
+- Vendor payload switched to vendor\js\plotly.min.js; vendor\site-packages removed to keep package size under 25 MB.
+- Plugin version bumped to 0.1.1; changelog updated.
+
 ## Core Features
 - Area by class per year (CSV)
 - Net/gross change per interval (CSV)
@@ -16,7 +21,7 @@ C:\Users\140790\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\spati
 - Change hotspots (heatmap) per interval (GeoTIFF)
 - Interactive charts for CSV outputs (HTML)
 - Sankey diagram across all intervals (HTML)
-- Plotly is vendored under vendor/ for offline HTML exports
+- Plotly.js is vendored under vendor\js for offline HTML exports
 
 ## UI and Behavior
 - Floating dock opens centered and larger by default (900x700).
@@ -63,6 +68,7 @@ C:\Users\140790\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\spati
 
 ## Packaging
 - notes.md is excluded from plugin zips via .qgis-plugin.donotpackage
+- vendor\js\plotly.min.js must be included in packaging for charts
 
 ## README
 - Homepage section added with GitHub Pages link.

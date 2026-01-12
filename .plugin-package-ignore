@@ -1,0 +1,29 @@
+# Dev-only / VCS
+
+.git
+.gitignore
+.gitattributes
+.gitmodules
+
+# Python cache
+
+**pycache** \*_/**pycache**
+_.pyc
+\*.pyo
+
+# Local build outputs
+
+dist
+release
+\*.zip
+
+# Editor configs
+
+.vscode
+.idea
+
+# Notes / docs not needed in QGIS
+
+notes.md
+notes2.md
+docs

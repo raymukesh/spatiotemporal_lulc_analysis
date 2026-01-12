@@ -1,29 +1,62 @@
 # -*- coding: utf-8 -*-
+import json
 import os
-import sys
-
-
-def _ensure_vendor_path():
-    root = os.path.dirname(os.path.dirname(__file__))
-    vendor_site = os.path.join(root, 'vendor', 'site-packages')
-    if os.path.isdir(vendor_site) and vendor_site not in sys.path:
-        sys.path.insert(0, vendor_site)
-
-
-_ensure_vendor_path()
-
-try:
-    import plotly.graph_objects as go
-    import plotly.io as pio
-    _PLOTLY_AVAILABLE = True
-except Exception:
-    go = None
-    pio = None
-    _PLOTLY_AVAILABLE = False
 
 
 def plotly_available():
-    return _PLOTLY_AVAILABLE
+    return os.path.isfile(_plotly_js_path())
+
+
+def _plotly_js_path():
+    root = os.path.dirname(os.path.dirname(__file__))
+    return os.path.join(root, 'vendor', 'js', 'plotly.min.js')
+
+
+def write_plotlyjs_html(output_html_path, title, traces, layout, config=None, inline_plotly=True):
+    if config is None:
+        config = {'responsive': True}
+    elif 'responsive' not in config:
+        config = dict(config)
+        config['responsive'] = True
+
+    plotly_js = ''
+    if inline_plotly:
+        js_path = _plotly_js_path()
+        if not os.path.isfile(js_path):
+            raise FileNotFoundError('Plotly.js not found at {}'.format(js_path))
+        with open(js_path, 'r', encoding='utf-8') as handle:
+            plotly_js = handle.read()
+        plotly_tag = '<script>{}</script>'.format(plotly_js)
+    else:
+        js_rel = os.path.relpath(_plotly_js_path(), os.path.dirname(output_html_path))
+        plotly_tag = '<script src="{}"></script>'.format(js_rel.replace(os.sep, '/'))
+
+    html = [
+        '<!doctype html>',
+        '<html>',
+        '<head>',
+        '<meta charset="utf-8">',
+        '<title>{}</title>'.format(title),
+        '<style>',
+        'html, body { margin: 0; padding: 0; width: 100%; height: 100%; }',
+        '#chart { width: 100%; height: 100vh; }',
+        '</style>',
+        '</head>',
+        '<body>',
+        '<div id="chart"></div>',
+        plotly_tag,
+        '<script>',
+        'const traces = {};'.format(json.dumps(traces, ensure_ascii=False)),
+        'const layout = {};'.format(json.dumps(layout, ensure_ascii=False)),
+        'const config = {};'.format(json.dumps(config, ensure_ascii=False)),
+        "Plotly.newPlot('chart', traces, layout, config);",
+        "window.onresize = () => Plotly.Plots.resize('chart');",
+        '</script>',
+        '</body>',
+        '</html>',
+    ]
+    with open(output_html_path, 'w', encoding='utf-8') as handle:
+        handle.write('\n'.join(html))
 
 
 def _class_label(class_id, label):
@@ -43,8 +76,12 @@ def _axis_label(unit_label):
     return unit_label
 
 
-def _write_figure(fig, html_path):
-    pio.write_html(fig, html_path, include_plotlyjs=True, full_html=True)
+def _write_plot_html(html_path, title, traces, layout, config=None):
+    try:
+        write_plotlyjs_html(html_path, title, traces, layout, config=config, inline_plotly=True)
+    except FileNotFoundError as exc:
+        return False, str(exc)
+    return True, None
 
 
 def _ensure_dir(path):
@@ -53,38 +90,39 @@ def _ensure_dir(path):
 
 
 def export_area_by_class(rows, output_dir, unit_label):
-    if not _PLOTLY_AVAILABLE:
-        return False, 'Plotly not available.'
+    if not plotly_available():
+        return False, 'Plotly.js not available.'
     _ensure_dir(output_dir)
     years = sorted({row[0] for row in rows})
     classes = sorted({row[1] for row in rows})
     labels = {row[1]: row[2] for row in rows}
     area_map = {(row[1], row[0]): float(row[4]) for row in rows}
 
-    fig = go.Figure()
+    traces = []
     for class_id in classes:
         y = [area_map.get((class_id, year), 0.0) for year in years]
-        fig.add_scatter(
-            x=years,
-            y=y,
-            mode='lines+markers',
-            name=_class_label(class_id, labels.get(class_id, '')),
-        )
+        traces.append({
+            'type': 'scatter',
+            'mode': 'lines+markers',
+            'x': years,
+            'y': y,
+            'name': _class_label(class_id, labels.get(class_id, '')),
+        })
 
-    fig.update_layout(
-        title='Area by Class',
-        xaxis_title='Year',
-        yaxis_title=_axis_label(unit_label),
-        legend_title='Class',
-    )
+    layout = {
+        'title': 'Area by Class',
+        'xaxis': {'title': 'Year'},
+        'yaxis': {'title': _axis_label(unit_label)},
+        'legend': {'title': {'text': 'Class'}},
+    }
     html_path = os.path.join(output_dir, 'area_by_class.html')
-    _write_figure(fig, html_path)
-    return True, None
+    ok, err = _write_plot_html(html_path, 'Area by Class', traces, layout)
+    return ok, err
 
 
 def export_net_gross(rows, year0, year1, unit_label, area_factor, output_dir):
-    if not _PLOTLY_AVAILABLE:
-        return False, 'Plotly not available.'
+    if not plotly_available():
+        return False, 'Plotly.js not available.'
     _ensure_dir(output_dir)
     labels = []
     gains = []
@@ -98,24 +136,25 @@ def export_net_gross(rows, year0, year1, unit_label, area_factor, output_dir):
         gains.append(gain_px * area_factor)
         losses.append(loss_px * area_factor)
 
-    fig = go.Figure()
-    fig.add_bar(x=labels, y=gains, name='Gain', marker_color='#2ca02c')
-    fig.add_bar(x=labels, y=[-val for val in losses], name='Loss', marker_color='#d62728')
-    fig.update_layout(
-        title='Net/Gross Change {}-{}'.format(year0, year1),
-        barmode='relative',
-        xaxis_title='Class',
-        yaxis_title=_axis_label(unit_label),
-    )
+    traces = [
+        {'type': 'bar', 'x': labels, 'y': gains, 'name': 'Gain', 'marker': {'color': '#2ca02c'}},
+        {'type': 'bar', 'x': labels, 'y': [-val for val in losses], 'name': 'Loss', 'marker': {'color': '#d62728'}},
+    ]
+    layout = {
+        'title': 'Net/Gross Change {}-{}'.format(year0, year1),
+        'barmode': 'relative',
+        'xaxis': {'title': 'Class'},
+        'yaxis': {'title': _axis_label(unit_label)},
+    }
     fname = 'net_gross_change_{}_{}'.format(year0, year1)
     html_path = os.path.join(output_dir, '{}.html'.format(fname))
-    _write_figure(fig, html_path)
-    return True, None
+    ok, err = _write_plot_html(html_path, 'Net/Gross Change {}-{}'.format(year0, year1), traces, layout)
+    return ok, err
 
 
 def export_net_gross_combined(interval_rows, legend_map, output_dir):
-    if not _PLOTLY_AVAILABLE:
-        return False, 'Plotly not available.'
+    if not plotly_available():
+        return False, 'Plotly.js not available.'
     _ensure_dir(output_dir)
 
     if not interval_rows:
@@ -136,7 +175,7 @@ def export_net_gross_combined(interval_rows, legend_map, output_dir):
         'rgba(23, 190, 207, 0.85)',
     ]
 
-    fig = go.Figure()
+    traces = []
     unit_label = interval_rows[0]['unit_label']
     for idx, interval in enumerate(interval_rows):
         label = interval['label']
@@ -150,108 +189,116 @@ def export_net_gross_combined(interval_rows, legend_map, output_dir):
             gains.append(-gain_px * area_factor)
             losses.append(loss_px * area_factor)
         color = palette[idx % len(palette)]
-        fig.add_bar(
-            y=class_labels,
-            x=gains,
-            orientation='h',
-            name='{} Gain'.format(label),
-            marker_color=color,
-            offsetgroup=label,
-            legendgroup=label,
-            showlegend=True,
-        )
-        fig.add_bar(
-            y=class_labels,
-            x=losses,
-            orientation='h',
-            name='{} Loss'.format(label),
-            marker_color=color.replace('0.85', '0.45'),
-            offsetgroup=label,
-            legendgroup=label,
-            showlegend=True,
-        )
+        traces.append({
+            'type': 'bar',
+            'y': class_labels,
+            'x': gains,
+            'orientation': 'h',
+            'name': '{} Gain'.format(label),
+            'marker': {'color': color},
+            'offsetgroup': label,
+            'legendgroup': label,
+            'showlegend': True,
+        })
+        traces.append({
+            'type': 'bar',
+            'y': class_labels,
+            'x': losses,
+            'orientation': 'h',
+            'name': '{} Loss'.format(label),
+            'marker': {'color': color.replace('0.85', '0.45')},
+            'offsetgroup': label,
+            'legendgroup': label,
+            'showlegend': True,
+        })
 
-    fig.update_layout(
-        title='Net/Gross Change (All Intervals)',
-        barmode='group',
-        xaxis_title=_axis_label(unit_label),
-        yaxis_title='Class',
-    )
+    layout = {
+        'title': 'Net/Gross Change (All Intervals)',
+        'barmode': 'group',
+        'xaxis': {'title': _axis_label(unit_label)},
+        'yaxis': {'title': 'Class'},
+    }
     html_path = os.path.join(output_dir, 'net_gross_change_all_intervals.html')
-    _write_figure(fig, html_path)
-    return True, None
+    ok, err = _write_plot_html(html_path, 'Net/Gross Change (All Intervals)', traces, layout)
+    return ok, err
 
 
 def export_transition_matrix(matrix, classes, labels, year0, year1, output_dir, unit_label):
-    if not _PLOTLY_AVAILABLE:
-        return False, 'Plotly not available.'
+    if not plotly_available():
+        return False, 'Plotly.js not available.'
     _ensure_dir(output_dir)
     class_labels = [_class_label(c, labels.get(c, '')) for c in classes]
-    fig = go.Figure(
-        data=go.Heatmap(
-            z=matrix,
-            x=class_labels,
-            y=class_labels,
-            colorscale='Blues',
-            colorbar=dict(title=_axis_label(unit_label)),
-        )
-    )
-    fig.update_layout(
-        title='Transition Matrix {}-{}'.format(year0, year1),
-        xaxis_title='To class',
-        yaxis_title='From class',
-    )
+    matrix_list = matrix.tolist() if hasattr(matrix, 'tolist') else matrix
+    traces = [{
+        'type': 'heatmap',
+        'z': matrix_list,
+        'x': class_labels,
+        'y': class_labels,
+        'colorscale': 'Blues',
+        'colorbar': {'title': {'text': _axis_label(unit_label)}},
+    }]
+    layout = {
+        'title': 'Transition Matrix {}-{}'.format(year0, year1),
+        'xaxis': {'title': 'To class'},
+        'yaxis': {'title': 'From class'},
+    }
     fname = 'transition_matrix_{}_{}'.format(year0, year1)
     html_path = os.path.join(output_dir, '{}.html'.format(fname))
-    _write_figure(fig, html_path)
-    return True, None
+    ok, err = _write_plot_html(html_path, 'Transition Matrix {}-{}'.format(year0, year1), traces, layout)
+    return ok, err
 
 
 def export_top_transitions(rows, year0, year1, output_dir, unit_label, max_items=20):
-    if not _PLOTLY_AVAILABLE:
-        return False, 'Plotly not available.'
+    if not plotly_available():
+        return False, 'Plotly.js not available.'
     _ensure_dir(output_dir)
     ranked = sorted(rows, key=lambda r: r[5], reverse=True)[:max_items]
     labels = ['{} -> {}'.format(_class_label(r[0], r[1]), _class_label(r[2], r[3])) for r in ranked]
     areas = [r[5] for r in ranked]
 
-    fig = go.Figure()
-    fig.add_bar(y=labels, x=areas, orientation='h', marker_color='#1f77b4')
-    fig.update_layout(
-        title='Top Transitions {}-{}'.format(year0, year1),
-        xaxis_title=_axis_label(unit_label),
-        yaxis_title='Transition',
-    )
+    traces = [{
+        'type': 'bar',
+        'y': labels,
+        'x': areas,
+        'orientation': 'h',
+        'marker': {'color': '#1f77b4'},
+    }]
+    layout = {
+        'title': 'Top Transitions {}-{}'.format(year0, year1),
+        'xaxis': {'title': _axis_label(unit_label)},
+        'yaxis': {'title': 'Transition'},
+    }
     fname = 'top_transitions_{}_{}'.format(year0, year1)
     html_path = os.path.join(output_dir, '{}.html'.format(fname))
-    _write_figure(fig, html_path)
-    return True, None
+    ok, err = _write_plot_html(html_path, 'Top Transitions {}-{}'.format(year0, year1), traces, layout)
+    return ok, err
 
 
 def export_intensity(rows, output_dir):
-    if not _PLOTLY_AVAILABLE:
-        return False, 'Plotly not available.'
+    if not plotly_available():
+        return False, 'Plotly.js not available.'
     _ensure_dir(output_dir)
     labels = ['{}-{}'.format(row[0], row[1]) for row in rows]
     annualized = [row[6] for row in rows]
     interval = [row[5] for row in rows]
 
-    fig = go.Figure()
-    fig.add_scatter(x=labels, y=interval, mode='lines+markers', name='Interval')
-    fig.add_scatter(x=labels, y=annualized, mode='lines+markers', name='Annualized')
-    fig.update_layout(
-        title='Change Intensity',
-        xaxis_title='Interval',
-        yaxis_title='Intensity',
-    )
+    traces = [
+        {'type': 'scatter', 'mode': 'lines+markers', 'x': labels, 'y': interval, 'name': 'Interval'},
+        {'type': 'scatter', 'mode': 'lines+markers', 'x': labels, 'y': annualized, 'name': 'Annualized'},
+    ]
+    layout = {
+        'title': 'Change Intensity',
+        'xaxis': {'title': 'Interval'},
+        'yaxis': {'title': 'Intensity'},
+    }
     html_path = os.path.join(output_dir, 'change_intensity.html')
-    _write_figure(fig, html_path)
-    return True, None
+    ok, err = _write_plot_html(html_path, 'Change Intensity', traces, layout)
+    return ok, err
 
 
 def export_sankey(intervals, legend_map, output_dir, max_links=5000):
-    if not _PLOTLY_AVAILABLE:
-        return False, 'Plotly not available.'
+    if not plotly_available():
+        return False, 'Plotly.js not available.'
     _ensure_dir(output_dir)
 
     nodes = []
@@ -299,17 +346,16 @@ def export_sankey(intervals, legend_map, output_dir, max_links=5000):
         if total_links >= max_links:
             break
 
-    fig = go.Figure(data=[
-        go.Sankey(
-            arrangement='snap',
-            node=dict(label=nodes, pad=12, thickness=14),
-            link=dict(source=links['source'], target=links['target'], value=links['value']),
-        )
-    ])
-    fig.update_layout(
-        title='Class Transitions (All Intervals)',
-        font=dict(size=12),
-    )
+    traces = [{
+        'type': 'sankey',
+        'arrangement': 'snap',
+        'node': {'label': nodes, 'pad': 12, 'thickness': 14},
+        'link': {'source': links['source'], 'target': links['target'], 'value': links['value']},
+    }]
+    layout = {
+        'title': 'Class Transitions (All Intervals)',
+        'font': {'size': 12},
+    }
     html_path = os.path.join(output_dir, 'class_flow_sankey.html')
-    _write_figure(fig, html_path)
-    return True, None
+    ok, err = _write_plot_html(html_path, 'Class Transitions (All Intervals)', traces, layout)
+    return ok, err

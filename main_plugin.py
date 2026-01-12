@@ -96,7 +96,7 @@ class LandChangeAccountingPlugin:
     def _show_about(self):
         text = (
             'Spatiotemporal LULC Analysis\n'
-            'Version: 0.1.0\n'
+            'Version: 0.1.1\n'
             'Author: Mukesh Ray\n\n'
             'Purpose\n'
             '  Land use/land cover change accounting for categorical rasters.\n'
@@ -658,7 +658,7 @@ class LandChangeAccountingPlugin:
             ]
             charts_enabled = self.widget.chartsCheck.isChecked()
             if charts_enabled and not charts.plotly_available():
-                self._log('Charts: Plotly not available. Enable vendored Plotly to export HTML.')
+                self._log('Charts: Plotly.js not available. Reinstall plugin v0.1.1 to restore charts.')
                 charts_enabled = False
             chart_dir = None
             if charts_enabled:

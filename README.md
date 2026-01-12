@@ -10,7 +10,8 @@ Spatiotemporal LULC Analysis is a QGIS plugin for multi-year land use/land cover
 - Top transitions ranking (CSV)
 - Change intensity per interval (CSV)
 - Interactive charts for CSV outputs (HTML)
-- Plotly is vendored under `vendor/` so charts work without external installs
+- Plotly.js is vendored under `vendor/js/` so charts work without external installs
+- Charts require an internet connection
 - Sankey diagram across all intervals (HTML)
 - Change frequency raster across all years (GeoTIFF)
 - Change hotspots (heatmap) per interval (GeoTIFF)
