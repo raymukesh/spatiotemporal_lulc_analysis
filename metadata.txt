@@ -1,5 +1,5 @@
 [general]
-name=spatiotemporal_lulc_analysis
+name=Spatiotemporal LULC Analysis
 qgisMinimumVersion=3.28
 version=0.1.1
 description=Spatiotemporal LULC analysis for categorical rasters: class areas, transitions, net/gross change, change intensity, persistence, and hotspot mapping.
